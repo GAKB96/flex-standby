@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="Theme.FlexStandby" parent="android:Theme.Material.NoActionBar">
+        <item name="android:windowBackground">#0B0B0C</item>
+        <item name="android:statusBarColor">#0B0B0C</item>
+        <item name="android:navigationBarColor">#0B0B0C</item>
+    </style>
+    <style name="Theme.FlexStandby.Fullscreen" parent="Theme.FlexStandby">
+        <item name="android:windowBackground">#000000</item>
+        <item name="android:windowFullscreen">true</item>
+        <item name="android:windowLayoutInDisplayCutoutMode">shortEdges</item>
+    </style>
+</resources>

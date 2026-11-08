@@ -1,0 +1,232 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+<title>Flex Standby</title>
+<style>
+  :root { --accent: #F28A1F; --digit: #FFFFFF; }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin: 0; height: 100%; background: #000; color: #F2F2F2;
+    font-family: Roboto, "Google Sans", system-ui, sans-serif; overflow: hidden; user-select: none; }
+  button { font-family: inherit; border: 0; cursor: pointer; }
+
+  /* ---------- idle: calendar + clock ---------- */
+  #idle { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+    gap: 5vw; padding: 5vh 5vw; transition: transform 2s ease; }
+  .cal { width: 32vw; max-width: 46vh; display: flex; flex-direction: column; }
+  .cal .top { margin: 0; font-size: 7vh; font-weight: 500; line-height: 1.1; }
+  .cal .top .wd { color: var(--accent); }
+  .cal .day { margin: 0 0 1.5vh; font-size: 30vh; font-weight: 500; line-height: 0.95; }
+  .cal .mon { margin: 0 0 1.2vh; font-size: 3vh; font-weight: 700; letter-spacing: .08em; color: var(--accent); }
+  .grid { display: grid; grid-template-columns: repeat(7, 1fr); row-gap: .6vh; }
+  .grid span { height: 5.2vh; display: flex; align-items: center; justify-content: center;
+    font-size: 3vh; font-weight: 500; color: #D6D6D6; }
+  .grid span.h { color: #F2F2F2; font-weight: 700; }
+  .grid span.today b { width: 5.2vh; height: 5.2vh; border-radius: 50%; background: var(--accent);
+    color: #111; display: flex; align-items: center; justify-content: center; font-weight: 700; }
+
+  .dial { --s: min(84vh, 52vw); width: var(--s); height: var(--s); border-radius: calc(var(--s) * .13);
+    background: #0A0A0A; position: relative; overflow: hidden; flex-shrink: 0; }
+  .tick { position: absolute; left: 50%; top: 50%; border-radius: 2px; }
+  .num { position: absolute; font-size: calc(var(--s) * .12); font-weight: 500; color: #F2F2F2; }
+  .hand { position: absolute; left: 50%; bottom: 50%; transform-origin: 50% 100%; border-radius: 4px; }
+  #hHand { width: calc(var(--s) * .024); height: 23%; margin-left: calc(var(--s) * -.012); background: #F2F2F2; }
+  #mHand { width: calc(var(--s) * .018); height: 36%; margin-left: calc(var(--s) * -.009); background: #F2F2F2; }
+  #sHand { width: 2px; height: 40%; margin-left: -1px; background: var(--accent); }
+  .pin { position: absolute; left: 50%; top: 50%; width: calc(var(--s) * .036); height: calc(var(--s) * .036);
+    transform: translate(-50%, -50%); border-radius: 50%; background: var(--accent); border: 2px solid #0A0A0A; }
+
+  /* ---------- small corner buttons ---------- */
+  .corner { position: absolute; bottom: 2.5vh; display: flex; gap: 1.2vw; }
+  .corner.right { right: 2.5vw; }
+  .corner.left { left: 2.5vw; }
+  .round { width: 48px; height: 48px; border-radius: 50%; background: #1A1A1C;
+    display: flex; align-items: center; justify-content: center; opacity: .75; }
+  .round svg { width: 22px; height: 22px; }
+  .dot { width: 20px; height: 20px; border-radius: 50%; background: var(--accent); border: 2px solid #F2F2F2; }
+
+  #picker { position: absolute; left: 50%; bottom: calc(2.5vh + 60px); transform: translateX(-50%);
+    padding: 10px 14px; border-radius: 40px; background: #1A1A1C; display: none; gap: 10px; }
+  #picker.open { display: flex; }
+  #picker button { width: 52px; height: 52px; border-radius: 50%; padding: 5px; background: transparent;
+    border: 3px solid transparent; }
+  #picker button.on { border-color: #F2F2F2; }
+  #picker button i { display: block; width: 100%; height: 100%; border-radius: 50%; }
+
+  /* ---------- ringing ---------- */
+  #ring { position: absolute; inset: 0; display: none; flex-direction: column; gap: 3.5vh;
+    padding: 5vh 4vw; background: #1E1006; }
+  body.ringing #ring { display: flex; }
+  body.ringing #idle, body.ringing .corner, body.ringing #picker { display: none; }
+  body.ringing.glowhere { animation: glowBg 1.6s ease-in-out infinite; }
+  body.ringing.glowhere #ring { background: transparent; }
+  @keyframes glowBg { 0%,100% { background: #1E1006; } 50% { background: color-mix(in srgb, var(--accent) 45%, #000); } }
+  .cards { flex: 1; display: grid; grid-template-columns: repeat(3, 1fr); gap: 3vw; }
+  .card { position: relative; border-radius: 3vh; background: var(--accent); display: flex;
+    align-items: center; justify-content: center; animation: pulse 1.6s ease-in-out infinite; }
+  @keyframes pulse { 0%,100% { filter: brightness(.9); } 50% { filter: brightness(1.15); } }
+  .card .v { font-family: "sans-serif-condensed", "Roboto Condensed", "Arial Narrow", sans-serif;
+    font-weight: 700; font-size: 38vh; line-height: 1; color: var(--digit); }
+  .card .tag { position: absolute; left: 1.4vw; top: 1.4vh; font-weight: 700; font-size: 3.6vh; color: var(--digit); }
+  .card::after { content: ""; position: absolute; left: 0; right: 0; top: 50%; height: 3px; margin-top: -1px; background: #1E1006; }
+  .actions { display: grid; grid-template-columns: 1fr 1fr; gap: 3vw; }
+  .actions button { height: max(56px, 13vh); border-radius: 2.5vh; font-size: max(20px, 5vh); font-weight: 600; }
+  #snooze { background: #3A2614; color: #F2F2F2; }
+  #stop { background: #F2F2F2; color: #1A0F05; }
+
+  /* portrait fallback: stack calendar above clock */
+  @media (orientation: portrait) {
+    #idle { flex-direction: column; gap: 3vh; }
+    .cal { width: 80vw; max-width: none; }
+    .cal .day { font-size: 18vh; }
+    .dial { --s: min(80vw, 50vh); }
+  }
+</style>
+</head>
+<body>
+  <div id="idle">
+    <div class="cal">
+      <p class="top"><span class="wd" id="wd"></span> <span id="mon"></span></p>
+      <p class="day" id="day"></p>
+      <p class="mon" id="monUp"></p>
+      <div class="grid" id="grid"></div>
+    </div>
+    <div class="dial" id="dial" role="img" aria-label="Clock">
+      <span class="num" style="left:0;right:0;top:8%;text-align:center">12</span>
+      <span class="num" style="left:0;right:0;bottom:6%;text-align:center">6</span>
+      <span class="num" style="left:12%;top:50%;transform:translateY(-55%)">9</span>
+      <span class="num" style="right:12%;top:50%;transform:translateY(-55%)">3</span>
+      <div class="hand" id="hHand"></div>
+      <div class="hand" id="mHand"></div>
+      <div class="hand" id="sHand"></div>
+      <div class="pin"></div>
+    </div>
+  </div>
+
+  <div class="corner left">
+    <button class="round" id="exitBtn" aria-label="Close standby">
+      <svg viewBox="0 0 24 24" fill="none" stroke="#F2F2F2" stroke-width="2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
+    </button>
+  </div>
+  <div class="corner right">
+    <button class="round" id="colorBtn" aria-label="Change colour"><span class="dot"></span></button>
+    <button class="round" id="bellBtn" aria-label="Test alarm">
+      <svg viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg>
+    </button>
+  </div>
+  <div id="picker" role="group" aria-label="Accent colour"></div>
+
+  <div id="ring">
+    <div class="cards">
+      <div class="card"><span class="tag" id="ampm"></span><span class="v" id="fh"></span></div>
+      <div class="card"><span class="v" id="fm"></span></div>
+      <div class="card"><span class="v" id="fs"></span></div>
+    </div>
+    <div class="actions">
+      <button id="snooze">Snooze 9 min</button>
+      <button id="stop">Stop</button>
+    </div>
+  </div>
+
+<script>
+  const A = window.Android || null;      // the app's bridge (absent when opened in a browser)
+  const PALETTE = [
+    ['Orange', '#F28A1F', '#FFFFFF'], ['Amber', '#FFB547', '#1A1A1A'],
+    ['Red', '#FF5A4E', '#FFFFFF'],    ['Pink', '#FF6FB1', '#1A1A1A'],
+    ['Purple', '#A98BFF', '#1A1A1A'], ['Blue', '#4FA8FF', '#1A1A1A'],
+    ['Teal', '#2FD3C4', '#1A1A1A'],   ['Green', '#7BDB6B', '#1A1A1A']
+  ];
+  const $ = (id) => document.getElementById(id);
+  const pad = (n) => String(n).padStart(2, '0');
+
+  // ----- colour -----
+  function applyAccent(hex) {
+    const p = PALETTE.find((x) => x[1] === hex) || PALETTE[0];
+    document.documentElement.style.setProperty('--accent', p[1]);
+    document.documentElement.style.setProperty('--digit', p[2]);
+    [...$('picker').children].forEach((b) => b.classList.toggle('on', b.dataset.hex === p[1]));
+  }
+  PALETTE.forEach(([name, hex]) => {
+    const b = document.createElement('button');
+    b.dataset.hex = hex; b.setAttribute('aria-label', name);
+    b.innerHTML = '<i style="background:' + hex + '"></i>';
+    b.onclick = () => { applyAccent(hex); if (A) A.setAccent(hex); $('picker').classList.remove('open'); };
+    $('picker').appendChild(b);
+  });
+  $('colorBtn').onclick = () => $('picker').classList.toggle('open');
+  applyAccent(A ? A.getAccent() : '#F28A1F');
+
+  // ----- dial ticks -----
+  for (let i = 0; i < 60; i++) {
+    if (i % 15 === 0) continue;
+    const major = i % 5 === 0;
+    const t = document.createElement('div');
+    t.className = 'tick';
+    const w = major ? 4 : 2, h = major ? 7.5 : 3.5;        // h in % of dial
+    t.style.width = w + 'px';
+    t.style.height = h + '%';
+    t.style.marginLeft = (-w / 2) + 'px';
+    t.style.marginTop = (-h / 2) + '%';
+    t.style.background = major ? '#F2F2F2' : '#5A5A5A';
+    t.style.transform = 'rotate(' + (i * 6) + 'deg) translateY(' + (major ? -570 : -1280) + '%)';
+    $('dial').insertBefore(t, $('dial').firstChild);
+  }
+
+  // ----- calendar -----
+  let calKey = '';
+  function drawCalendar(d) {
+    const key = d.toDateString();
+    if (key === calKey) return;
+    calKey = key;
+    $('wd').textContent = d.toLocaleDateString(undefined, { weekday: 'short' });
+    $('mon').textContent = d.toLocaleDateString(undefined, { month: 'short' });
+    $('day').textContent = d.getDate();
+    $('monUp').textContent = d.toLocaleDateString(undefined, { month: 'long' }).toUpperCase();
+    const g = $('grid'); g.innerHTML = '';
+    ['S','M','T','W','T','F','S'].forEach((x) => { const s = document.createElement('span'); s.className = 'h'; s.textContent = x; g.appendChild(s); });
+    const first = new Date(d.getFullYear(), d.getMonth(), 1).getDay();
+    const days = new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate();
+    for (let i = 0; i < first; i++) g.appendChild(document.createElement('span'));
+    for (let n = 1; n <= days; n++) {
+      const s = document.createElement('span');
+      if (n === d.getDate()) { s.className = 'today'; s.innerHTML = '<b>' + n + '</b>'; } else s.textContent = n;
+      g.appendChild(s);
+    }
+  }
+
+  // ----- tick every second -----
+  function tick() {
+    const d = new Date();
+    const h = d.getHours(), m = d.getMinutes(), s = d.getSeconds();
+    $('hHand').style.transform = 'rotate(' + ((h % 12) * 30 + m * 0.5) + 'deg)';
+    $('mHand').style.transform = 'rotate(' + (m * 6 + s * 0.1) + 'deg)';
+    $('sHand').style.transform = 'rotate(' + (s * 6) + 'deg)';
+    drawCalendar(d);
+    const h12 = h % 12 === 0 ? 12 : h % 12;
+    $('fh').textContent = pad(h12); $('fm').textContent = pad(m); $('fs').textContent = pad(s);
+    $('ampm').textContent = h < 12 ? 'AM' : 'PM';
+    // Nudge everything a few pixels each minute so the screen doesn't burn in overnight.
+    if (s === 0) {
+      const dx = Math.round(Math.random() * 12 - 6), dy = Math.round(Math.random() * 12 - 6);
+      $('idle').style.transform = 'translate(' + dx + 'px,' + dy + 'px)';
+    }
+  }
+  tick();
+  setInterval(tick, 1000);
+
+  // ----- alarm -----
+  function setRinging(on) {
+    document.body.classList.toggle('ringing', !!on);
+    // If the inside screen can't be lit, this screen pulses with the glow instead.
+    const elsewhere = A ? A.glowElsewhere() : false;
+    document.body.classList.toggle('glowhere', !!on && !elsewhere);
+  }
+  window.setRinging = setRinging;
+  $('bellBtn').onclick = () => { if (A) A.testAlarm(); else setRinging(true); };
+  $('snooze').onclick = () => { if (A) A.snooze(); else setRinging(false); };
+  $('stop').onclick = () => { if (A) A.stop(); else setRinging(false); };
+  $('exitBtn').onclick = () => { if (A) A.exit(); };
+</script>
+</body>
+</html>
